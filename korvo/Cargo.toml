@@ -54,6 +54,10 @@ fast = ["cactus-whistle/fast"]
 # checksum (for development and automated checks; the board is busy for
 # ~20 s). `cargo run-vocat --selftest` / `cargo run-korvo --selftest`.
 selftest = []
+# The boot splash (espressif, a heart, cactuscompute) at boot. It is off by
+# default: a production firmware does not need the animation, its marks and
+# the time it takes. `cargo run-vocat --splash` / `cargo run-korvo --splash`.
+splash = ["whistle-common/splash"]
 
 [profile.dev]
 opt-level = "s"

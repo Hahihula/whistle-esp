@@ -18,6 +18,8 @@ extern crate alloc;
 mod accel;
 mod bench;
 mod qio;
+#[cfg(feature = "splash")]
+mod splash;
 mod ui;
 
 use alloc::vec::Vec;
@@ -155,11 +157,7 @@ async fn main(spawner: Spawner) -> ! {
         halt().await;
     }
 
-    screen.status("Loading model...", ui::GREY);
-    screen.draw(&mut fb);
-    let _ = lcd.flush(&mut fb).await;
-    backlight.fade(0, 100, Duration::from_millis(400));
-
+    // The model loads on the second core while the splash plays.
     esp_rtos::start_second_core(p.CPU_CTRL, p.FROM_CPU_INTR1, CORE1_STACK.take(), move || {
         inference::inference_core(
             model,
@@ -173,6 +171,17 @@ async fn main(spawner: Spawner) -> ! {
             },
         )
     });
+
+    // The backlight comes up, and with the `splash` feature the splash
+    // plays: espressif, a heart, cactuscompute. Without the feature a
+    // production firmware goes straight to the UI.
+    backlight.fade(0, 100, Duration::from_millis(400));
+    #[cfg(feature = "splash")]
+    splash::run(&mut lcd, &mut fb).await;
+
+    screen.status("Loading model...", ui::GREY);
+    screen.draw(&mut fb);
+    let _ = lcd.flush(&mut fb).await;
 
     // Measures the pad baselines: nobody should touch them for ~200 ms.
     let pads = TouchPads::new(p.SENS, p.RTC_IO, p.GPIO6, p.GPIO7);

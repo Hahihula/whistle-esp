@@ -8,6 +8,12 @@ license.workspace      = true
 repository.workspace   = true
 publish      = false
 
+[features]
+# The boot splash with the brand marks (common/src/splash.rs). It is off by
+# default: a production firmware does not need the animation, its marks and
+# the time it takes.
+splash = ["dep:embedded-graphics"]
+
 [dependencies]
 # No chip features here: each firmware turns on its own (esp-pie: esp32s3 /
 # esp32s31; cactus-whistle: riscv-fpu).
@@ -16,5 +22,6 @@ esp-pie         = { workspace = true }
 embassy-sync    = "0.8"
 embassy-time    = "0.5"
 embassy-futures = "0.1"
+embedded-graphics = { version = "0.8", optional = true }
 log             = "0.4.27"
 libm            = "0.2"

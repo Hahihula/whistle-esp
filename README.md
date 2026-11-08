@@ -54,6 +54,9 @@ Options:
 - `--selftest` (build/run) makes the firmware transcribe a built-in English clip at
   boot and log its timings and encoder checksum, before taking recordings. It's for
   development and automated checks; it keeps the board busy for about 16-20 s.
+- `--splash` (build/run) plays the boot splash (see below). It is off by default: a
+  production firmware goes straight to the user interface, without the animation, its
+  marks and the couple of seconds it takes.
 - `--port PORT` picks the serial port when several boards are connected.
 - `--depth N` (flash-model) flashes another depth, if it fits.
 
@@ -68,8 +71,10 @@ on `PATH`, it loads `~/export-esp.sh` for the VoCat build itself.
 |---|---|
 | `vocat/` | ESP-VoCat firmware: board bring-up, touch pads, round-screen UI, flash mapping and the runtime QIO switch |
 | `korvo/` | ESP32-S31-Korvo-1 firmware: board bring-up, buttons, 800x480 UI, flash mapping |
-| `common/` | `whistle-common`, the board-independent half: the inference core's loop, the helper core's task, the message channel, audio and text helpers |
+| `common/` | `whistle-common`, the board-independent half: the inference core's loop, the helper core's task, the message channel, audio and text helpers, the boot splash |
 | `xtask/` | the host commands above |
+| `tools/` | the splash asset generator and a host preview of the splash |
+| `assets/brand/` | the brand artwork the splash is cut from |
 | `model/` | downloaded and trimmed models (not in git) |
 
 The firmwares are separate Cargo packages, because each builds for its own chip with
@@ -102,6 +107,50 @@ Both firmwares split the work the same way:
 - **Results don't depend on the board.** The self-test (`--selftest`) logs a checksum of the encoder
   output (`enc_fnv`). It is the same on both boards and on a PC (`whistle transcribe`
   in cactus-whistle-rs): `db9a1371` for the default spec.
+
+## Boot splash
+
+The splash is behind the `splash` feature (`cargo run-vocat --splash`,
+`cargo run-korvo --splash`); without it the firmware is built without the
+animation at all.
+
+Both firmwares open with the same short animation on a black screen: the
+Espressif mark, a heart and the Cactus Compute mark in one line in the middle
+of the screen. The line fades in, the two marks travel apart vertically, and
+the names "espressif" and "cactuscompute" slide in next to them: espressif
+loves cactuscompute. The two rows are the same width and mirror each other
+around the heart, so the whole composition is centred on the screen.
+
+The animation is `whistle_common::splash` (in `common/src/splash.rs`); each
+firmware only runs the loop and flushes its own screen. The marks are white
+line art, so the firmware only needs their coverage, one byte per pixel:
+`tools/make_splash_assets.py` cuts them out of the artwork in `assets/brand/`
+(the Espressif press kit and the Cactus Compute brand page) and writes the
+masks into `common/assets/`. The heart is drawn from the same script.
+
+The firmware tints the coverage: the Espressif mark is red, the Cactus Compute
+mark and both names are white, the heart is rose. The colours are set per board
+in `Splash::vocat()` and `Splash::korvo()`.
+
+Only the areas the last frame drew are erased and redrawn, so a frame touches
+the rows the animation is on instead of the whole screen, which matters on the
+Korvo, where the LCD is scanned out of PSRAM. What has come to a stand-still
+(the heart after it has faded in, the marks after they have split, the names
+after they have slid in) is drawn one last time and then left alone, so the
+later frames cost nothing.
+
+On the Korvo the splash plays *before* the model is loaded on the second
+core. The load copies a few megabytes of the model's output head through
+PSRAM, and PSRAM has little headroom there: the LCD's scan-out falls behind,
+the picture drifts and the driver has to realign it with a blink. That costs
+about 2.6 s of boot time on that board.
+
+To see the splash without a board, `tools/splash-preview` renders it on the
+host, with the very code the firmwares run:
+
+```bash
+cd tools/splash-preview && cargo run --release   # writes /tmp/splash_{vocat,korvo}.ppm
+```
 
 ## Speed
 

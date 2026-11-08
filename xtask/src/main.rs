@@ -4,9 +4,9 @@
 //!     cargo xtask fetch-model
 //!     cargo xtask trim-model [DEPTH]
 //!     cargo xtask flash-model vocat|korvo [--depth N] [--port PORT]
-//!     cargo xtask build vocat|korvo [--fast]
-//!     cargo xtask run vocat|korvo [--fast] [--port PORT]
-//!     cargo xtask setup vocat|korvo [--port PORT]
+//!     cargo xtask build vocat|korvo [--fast] [--splash]
+//!     cargo xtask run vocat|korvo [--fast] [--splash] [--port PORT]
+//!     cargo xtask setup vocat|korvo [--splash] [--port PORT]
 
 use std::{
     path::{Path, PathBuf},
@@ -23,12 +23,14 @@ cargo xtask <command>
   trim-model [DEPTH]             keep DEPTH decoder layers (default 4: 14.5 MB, fits the boards)
   flash-model BOARD [--depth N] [--port PORT]
                                  write the trimmed model into the board's model partition
-  build BOARD [--fast] [--selftest]
+  build BOARD [--fast] [--selftest] [--splash]
                                  build the firmware (--fast: greedy decoding instead of
-                                 5 beams; --selftest: transcribe a built-in clip at boot)
-  run BOARD [--fast] [--selftest] [--port PORT]
+                                 5 beams; --selftest: transcribe a built-in clip at boot;
+                                 --splash: play the boot splash)
+  run BOARD [--fast] [--selftest] [--splash] [--port PORT]
                                  build, flash and open the serial monitor
-  setup BOARD [--port PORT]      all of the above, skipping steps already done
+  setup BOARD [--splash] [--port PORT]
+                                 all of the above, skipping steps already done
 
 BOARD is vocat (ESP-VoCat, ESP32-S3) or korvo (ESP32-S31-Korvo-1).
 Aliases: cargo fetch-model, trim-model, flash-model, build-vocat, run-vocat, build-korvo, run-korvo.";
@@ -94,6 +96,7 @@ fn main() -> ExitCode {
 struct Opts {
     fast: bool,
     selftest: bool,
+    splash: bool,
     depth: Option<usize>,
     port: Option<String>,
 }
@@ -106,6 +109,7 @@ impl Opts {
             match a.as_str() {
                 "--fast" => o.fast = true,
                 "--selftest" => o.selftest = true,
+                "--splash" => o.splash = true,
                 "--depth" => {
                     let d = it.next().ok_or("--depth needs a number")?;
                     o.depth = Some(d.parse().map_err(|_| "--depth needs a number")?);
@@ -209,7 +213,7 @@ fn flash_model(board: Board, o: &Opts) -> Result<(), String> {
 /// apply.
 fn cargo_firmware(board: Board, verb: &str, o: &Opts) -> Result<(), String> {
     let mut args = vec![verb.to_string(), "--release".to_string()];
-    let features: Vec<&str> = [(o.fast, "fast"), (o.selftest, "selftest")]
+    let features: Vec<&str> = [(o.fast, "fast"), (o.selftest, "selftest"), (o.splash, "splash")]
         .into_iter()
         .filter_map(|(on, f)| on.then_some(f))
         .collect();

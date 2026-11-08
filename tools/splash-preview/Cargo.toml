@@ -1,0 +1,13 @@
+[package]
+name = "splash-preview"
+description = "Renders the boot splash on the host, with the code the firmware runs"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+embedded-graphics = "0.8"
+libm = "0.2"
+
+# Stand alone: not part of the whistle-esp workspace.
+[workspace]

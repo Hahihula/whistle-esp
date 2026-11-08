@@ -19,6 +19,8 @@
 extern crate alloc;
 
 mod mmap;
+#[cfg(feature = "splash")]
+mod splash;
 mod ui;
 
 use alloc::{format, vec::Vec};
@@ -28,6 +30,7 @@ use embassy_executor::Spawner;
 use embassy_futures::select::{Either, select};
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
 use embassy_time::{Duration, Timer};
+use embedded_graphics::{pixelcolor::Rgb565, prelude::*};
 use esp_backtrace as _;
 use esp_hal::{clock::CpuClock, psram::Psram, system::Stack, timer::timg::TimerGroup};
 use log::{error, info, warn};
@@ -120,9 +123,10 @@ async fn main(spawner: Spawner) -> ! {
         Err(e) => halt(&format!("display init failed: {e:?}")).await,
     };
     {
+        // A black screen, so the scan-out starts on something. The splash
+        // takes over from here.
         let mut c = lcd.canvas();
-        ui::draw_frame(&mut c);
-        ui::status(&mut c, "Loading model...", ui::GREY);
+        let _ = c.clear(Rgb565::BLACK);
     }
     if let Err(e) = lcd.present().await {
         warn!("present: {e:?}");
@@ -142,6 +146,7 @@ async fn main(spawner: Spawner) -> ! {
         error!("  cargo flash-model korvo   (in the repository root)");
         {
             let mut c = lcd.canvas();
+            ui::draw_frame(&mut c);
             ui::status(&mut c, "No model in flash", ui::RED);
             ui::body(&mut c, "cargo flash-model korvo", false);
         }
@@ -178,6 +183,16 @@ async fn main(spawner: Spawner) -> ! {
         Err(e) => halt(&format!("buttons: {e:?}")).await,
     };
 
+    // The splash: espressif, a heart, cactuscompute.
+    //
+    // It plays before the model is loaded on the second core. The load
+    // copies a few megabytes of the model's output head through PSRAM, and
+    // PSRAM has little headroom: the LCD's scan-out falls behind, the
+    // picture drifts and the driver has to realign it with a blink. On the
+    // quiet PSRAM of the splash the picture stays where it belongs.
+    #[cfg(feature = "splash")]
+    splash::run(&mut lcd).await;
+
     esp_rtos::start_second_core(p.CPU_CTRL, CORE1_STACK.take(), move || {
         inference::inference_core(
             model,
@@ -192,6 +207,17 @@ async fn main(spawner: Spawner) -> ! {
         )
     });
     spawner.spawn(helper_task().unwrap());
+
+    // The splash covered the screen, so the frame is drawn again.
+    {
+        let mut c = lcd.canvas();
+        ui::draw_frame(&mut c);
+        ui::status(&mut c, "Loading model...", ui::GREY);
+    }
+    if let Err(e) = lcd.present().await {
+        warn!("present: {e:?}");
+    }
+
     let mut ready = false;
     let mut busy = SELFTEST; // with the self-test, it runs first
 
