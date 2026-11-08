@@ -3,7 +3,7 @@
 use embassy_time::Instant;
 use esp32_s31_korvo::display::Display;
 
-use whistle_common::splash::{Splash, DURATION};
+use whistle_common::splash::{DURATION, Splash};
 
 /// Shows the splash on the LCD until it is over.
 pub async fn run(lcd: &mut Display<'_>) {

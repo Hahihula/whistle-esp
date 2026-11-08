@@ -1,2 +1,6 @@
 target/
 /model/
+# Put there by the release workflow.
+/site/firmware/
+/site/model/
+/site/version.json

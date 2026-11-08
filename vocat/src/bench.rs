@@ -5,11 +5,11 @@
 use alloc::vec;
 use alloc::vec::Vec;
 
-use log::info;
 use cactus_whistle::{
     cact::{Cact, Tensor},
     quant::{Q8Act, q8_gemm},
 };
+use log::info;
 
 fn cycles() -> u32 {
     let c: u32;
@@ -79,17 +79,27 @@ fn fma_check() -> (u32, u32) {
 pub fn kernels(model: &[u8]) {
     let c = Cact::open(model).expect("model");
     let gate = c.tensor(10).expect("tensor"); // 512 wide
-    let x512: Vec<f32> = (0..512).map(|i| ((i * 37 % 101) as f32 - 50.0) / 50.0).collect();
-    let x31: Vec<f32> = (0..31 * 512).map(|i| ((i * 37 % 101) as f32 - 50.0) / 50.0).collect();
+    let x512: Vec<f32> = (0..512)
+        .map(|i| ((i * 37 % 101) as f32 - 50.0) / 50.0)
+        .collect();
+    let x31: Vec<f32> = (0..31 * 512)
+        .map(|i| ((i * 37 % 101) as f32 - 50.0) / 50.0)
+        .collect();
     info!(
         "bench Q8Act::prepare: 1x512 {} cyc/group, 31x512 {} cyc/group",
-        time(50, || drop(core::hint::black_box(Q8Act::prepare(&gate, &x512, 1)))) / 4,
-        time(5, || drop(core::hint::black_box(Q8Act::prepare(&gate, &x31, 31)))) / (31 * 4)
+        time(50, || drop(core::hint::black_box(Q8Act::prepare(
+            &gate, &x512, 1
+        )))) / 4,
+        time(5, || drop(core::hint::black_box(Q8Act::prepare(
+            &gate, &x31, 31
+        )))) / (31 * 4)
     );
     let mut blk = [0.5f32; 128];
     info!(
         "bench fwht(128): {} cyc",
-        time(100, || cactus_whistle::math::fwht(core::hint::black_box(&mut blk[..])))
+        time(100, || cactus_whistle::math::fwht(core::hint::black_box(
+            &mut blk[..]
+        )))
     );
     let z = [0.25f32; 512];
     let a = [0.5f32; 256];
@@ -97,7 +107,12 @@ pub fn kernels(model: &[u8]) {
     let mut o = [0f32; 512];
     info!(
         "bench kron 16x32 (24.6K MAC): {} cyc",
-        time(20, || cactus_whistle::bench::kron(core::hint::black_box(&z), &a, &b, &mut o))
+        time(20, || cactus_whistle::bench::kron(
+            core::hint::black_box(&z),
+            &a,
+            &b,
+            &mut o
+        ))
     );
     let (d, n) = fma_check();
     info!("bench madd.s vs libm::fmaf: {d} of {n} differ");
@@ -106,7 +121,9 @@ pub fn kernels(model: &[u8]) {
 pub fn run(model: &[u8], head_psram: &[u8]) {
     kernels(model);
     let c = Cact::open(model).expect("model");
-    let x: Vec<f32> = (0..512).map(|i| ((i * 37 % 101) as f32 - 50.0) / 50.0).collect();
+    let x: Vec<f32> = (0..512)
+        .map(|i| ((i * 37 % 101) as f32 - 50.0) / 50.0)
+        .collect();
     cactus_whistle::par::set_helper(false); // single core: cycles per row on core 1
 
     // Decoder layer 0 gate_proj: 512 x 512, 2-bit, in flash.

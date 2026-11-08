@@ -1,0 +1,125 @@
+name: Release
+
+# Push a tag like v0.1.0: builds both firmwares, trims the model, attaches
+# everything to the GitHub release of that tag, and publishes the web flasher
+# (site/) with those files on GitHub Pages. Run it by hand
+# (workflow_dispatch) to rebuild the site without a release.
+#
+# Pages must be set to "GitHub Actions" as its source (repository settings).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  vocat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: esp-rs/xtensa-toolchain@v1.6
+        with:
+          default: true
+          buildtargets: esp32s3
+          ldproxy: false
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: espflash
+      - run: cargo build --release
+        working-directory: vocat
+      # The whole flash image from address 0: bootloader, partition table and
+      # app, not padded, so flashing it leaves the model partition alone.
+      # DIO at 80 MHz, as `cargo run-vocat` flashes it (see vocat/.cargo).
+      - run: >
+          espflash save-image --chip esp32s3 --merge --skip-padding
+          --partition-table vocat/partitions.csv --flash-mode dio --flash-freq 80mhz --flash-size 16mb
+          vocat/target/xtensa-esp32s3-none-elf/release/vocat-whistle vocat.bin
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vocat
+          path: vocat.bin
+
+  korvo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: riscv32imafc-unknown-none-elf
+          components: rust-src
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: espflash
+      - run: cargo build --release
+        working-directory: korvo
+      - run: >
+          espflash save-image --chip esp32s31 --merge --skip-padding
+          --partition-table korvo/partitions.csv --flash-size 16mb
+          korvo/target/riscv32imafc-unknown-none-elf/release/korvo-whistle korvo.bin
+      - uses: actions/upload-artifact@v4
+        with:
+          name: korvo
+          path: korvo.bin
+
+  model:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/cache@v4
+        with:
+          path: model/whistle.cact
+          key: whistle-cact-v1
+      - run: test -f model/whistle.cact || cargo fetch-model
+      - run: cargo trim-model 4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: model
+          path: model/whistle_d4.cact
+
+  publish:
+    needs: [vocat, korvo, model]
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Release assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/vocat.bin
+            artifacts/korvo.bin
+            artifacts/whistle_d4.cact
+      - name: Assemble the site
+        run: |
+          mkdir -p site/firmware site/model
+          cp artifacts/vocat.bin artifacts/korvo.bin site/firmware/
+          cp artifacts/whistle_d4.cact site/model/
+          version=${GITHUB_REF_NAME}
+          printf '{"version":"%s","date":"%s"}\n' "$version" "$(date -u +%Y-%m-%d)" > site/version.json
+          ls -lR site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4

@@ -64,10 +64,21 @@ impl Screen {
     }
 
     pub fn transcript(&mut self, t: &Transcript) {
-        self.status(if t.selftest { "Self-test" } else { "Heard" }, if t.selftest { GREY } else { GREEN });
-        self.body = if t.text.is_empty() { String::from("(nothing)") } else { t.text.clone() };
+        self.status(
+            if t.selftest { "Self-test" } else { "Heard" },
+            if t.selftest { GREY } else { GREEN },
+        );
+        self.body = if t.text.is_empty() {
+            String::from("(nothing)")
+        } else {
+            t.text.clone()
+        };
         self.polish = t.lang == "pl";
-        let mode = if crate::SPEC == cactus_whistle::Spec::Guide { "5-beam" } else { "fast/greedy" };
+        let mode = if crate::SPEC == cactus_whistle::Spec::Guide {
+            "5-beam"
+        } else {
+            "fast/greedy"
+        };
         self.footer = format!(
             "{} | {:.1}s audio | {:.1}s | {mode}",
             t.lang,
@@ -78,12 +89,21 @@ impl Screen {
 
     pub fn draw(&self, fb: &mut FrameBuffer) {
         let _ = fb.clear(Rgb565::BLACK);
-        let big: &MonoFont = if self.polish { &iso_8859_2::FONT_10X20 } else { &iso_8859_1::FONT_10X20 };
+        let big: &MonoFont = if self.polish {
+            &iso_8859_2::FONT_10X20
+        } else {
+            &iso_8859_1::FONT_10X20
+        };
         let small = &iso_8859_1::FONT_7X13;
         // Header, where the circle is still ~240 px wide.
         center(fb, "Cactus Whistle", 38, MonoTextStyle::new(small, ACCENT));
         center(fb, "by Cactus Compute", 53, MonoTextStyle::new(small, GREY));
-        center(fb, &self.status, 84, MonoTextStyle::new(big, self.status_color));
+        center(
+            fb,
+            &self.status,
+            84,
+            MonoTextStyle::new(big, self.status_color),
+        );
         let char_w = big.character_size.width as i32;
         let lines = text::wrap(&self.body, BODY_LINES, |i| line_chars(i, char_w));
         let style = MonoTextStyle::new(big, Rgb565::WHITE);

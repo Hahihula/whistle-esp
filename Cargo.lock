@@ -23,6 +23,7 @@ checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 [[package]]
 name = "cactus-whistle"
 version = "0.1.0"
+source = "git+https://github.com/Hahihula/cactus-whistle-rs?tag=v0.1.0#dba59f4d3ab5be5168961a1abf5e7a454642343a"
 dependencies = [
  "libm",
 ]
@@ -159,6 +160,7 @@ dependencies = [
 [[package]]
 name = "esp-pie"
 version = "0.1.0"
+source = "git+https://github.com/Hahihula/esp-pie?tag=v0.1.0#c784e6f461d8f83cb0af8381050854924cfb798c"
 
 [[package]]
 name = "float-cmp"

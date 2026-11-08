@@ -26,6 +26,7 @@ mod ui;
 use alloc::{format, vec::Vec};
 use core::sync::atomic::{AtomicBool, Ordering};
 
+use cactus_whistle::{Spec, par::Int8Help};
 use embassy_executor::Spawner;
 use embassy_futures::select::{Either, select};
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
@@ -35,7 +36,6 @@ use esp_backtrace as _;
 use esp_hal::{clock::CpuClock, psram::Psram, system::Stack, timer::timg::TimerGroup};
 use log::{error, info, warn};
 use static_cell::ConstStaticCell;
-use cactus_whistle::{Spec, par::Int8Help};
 
 use esp32_s31_korvo::{
     audio::{AudioIn, I2sInPins},
@@ -93,7 +93,10 @@ async fn main(spawner: Spawner) -> ! {
     let timg0 = TimerGroup::new(p.TIMG0);
     esp_rtos::start(timg0.timer0);
     Timer::after(Duration::from_millis(500)).await;
-    info!("=== Cactus Whistle on ESP32-S31-Korvo-1 ({}) ===", SPEC.name());
+    info!(
+        "=== Cactus Whistle on ESP32-S31-Korvo-1 ({}) ===",
+        SPEC.name()
+    );
 
     // PSRAM: the LCD frame buffer first, the rest to the heap.
     let psram = Psram::new(p.PSRAM, Default::default());
@@ -109,7 +112,12 @@ async fn main(spawner: Spawner) -> ! {
         ));
         core::slice::from_raw_parts_mut(pstart, fb_len)
     };
-    info!("PSRAM: {} KiB at {:#x}, {} KiB frame buffer", psize / 1024, pstart as usize, fb_len / 1024);
+    info!(
+        "PSRAM: {} KiB at {:#x}, {} KiB frame buffer",
+        psize / 1024,
+        pstart as usize,
+        fb_len / 1024
+    );
 
     // A lower refresh than the driver's default (~29.5 instead of ~35
     // frames/s): the scan-out then takes ~30 MB/s of PSRAM instead of ~36,
@@ -118,7 +126,13 @@ async fn main(spawner: Spawner) -> ! {
     // slowly while it "thinks"; the next present() (the transcript) realigns
     // it. Correcting it during inference was tried: it blinks 2-3 times a
     // second, which looks worse.
-    let mut lcd = match Display::with_pixel_clock(p.LCD_CAM, p.DMA_AXI_CH0, lcd_pins!(p), framebuffer, LCD_PIXEL_CLOCK) {
+    let mut lcd = match Display::with_pixel_clock(
+        p.LCD_CAM,
+        p.DMA_AXI_CH0,
+        lcd_pins!(p),
+        framebuffer,
+        LCD_PIXEL_CLOCK,
+    ) {
         Ok(d) => d,
         Err(e) => halt(&format!("display init failed: {e:?}")).await,
     };
@@ -132,10 +146,11 @@ async fn main(spawner: Spawner) -> ! {
         warn!("present: {e:?}");
     }
 
-    let (model, entry) = match unsafe { mmap::map_flash(mmap::MODEL_FLASH_OFFSET, mmap::MODEL_PARTITION_SIZE) } {
-        Ok(m) => m,
-        Err(e) => halt(&format!("cannot map the model: {e:?}")).await,
-    };
+    let (model, entry) =
+        match unsafe { mmap::map_flash(mmap::MODEL_FLASH_OFFSET, mmap::MODEL_PARTITION_SIZE) } {
+            Ok(m) => m,
+            Err(e) => halt(&format!("cannot map the model: {e:?}")).await,
+        };
     let tag = u32::from_le_bytes([model[0], model[1], model[2], model[3]]);
     info!(
         "model mapped at {:#x} (flash MMU entry {entry}), tag {tag:#010x}",
@@ -155,7 +170,11 @@ async fn main(spawner: Spawner) -> ! {
     }
 
     // I2S first: the ES8389 is a slave clocked from BCLK.
-    let pins = I2sInPins { bclk: p.GPIO3, ws: p.GPIO4, din: p.GPIO6 };
+    let pins = I2sInPins {
+        bclk: p.GPIO3,
+        ws: p.GPIO4,
+        din: p.GPIO6,
+    };
     match AudioIn::new(p.I2S0, p.DMA_CH1, pins, SAMPLE_RATE) {
         Ok(input) => spawner.spawn(mic_task(input).unwrap()),
         Err(e) => error!("I2S init failed: {e:?}"),
@@ -175,7 +194,10 @@ async fn main(spawner: Spawner) -> ! {
         Err(e) => error!("ES8389 did not answer: {e:?}"),
     }
     match codec.init(Gain::from_db(MIC_GAIN_DB)).await {
-        Ok(()) => info!("ES8389 running, mic gain {} dB", Gain::from_db(MIC_GAIN_DB).db()),
+        Ok(()) => info!(
+            "ES8389 running, mic gain {} dB",
+            Gain::from_db(MIC_GAIN_DB).db()
+        ),
         Err(e) => error!("ES8389 init failed: {e:?}"),
     }
     let mut buttons = match Buttons::new(p.ADC1, p.GPIO42) {
@@ -254,15 +276,16 @@ async fn main(spawner: Spawner) -> ! {
                     rms_db(&mic2),
                     peak_db(&mic2)
                 );
-                let mut c = lcd.canvas();
-                if let Some(x) = audio::prepare(&mic1) {
-                    TO_INFERENCE.signal(x);
-                    busy = true;
-                    ui::status(&mut c, "Thinking...", ui::BLUE);
-                } else {
-                    ui::status(&mut c, "Too short", ui::AMBER);
+                {
+                    let mut c = lcd.canvas();
+                    if let Some(x) = audio::prepare(&mic1) {
+                        TO_INFERENCE.signal(x);
+                        busy = true;
+                        ui::status(&mut c, "Thinking...", ui::BLUE);
+                    } else {
+                        ui::status(&mut c, "Too short", ui::AMBER);
+                    }
                 }
-                drop(c);
                 let _ = lcd.present().await;
                 continue;
             }

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cactus Whistle on ESP32 – web flasher</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header>
+    <h1>Cactus Whistle on ESP32</h1>
+    <p class="lead">Offline speech recognition on a microcontroller: hold a button, speak,
+      read the transcript on the screen. No network, no operating system. Flash it onto
+      your board from this page.</p>
+  </header>
+
+  <section id="unsupported" class="card warn" hidden>
+    This page needs the Web Serial API: use Chrome, Edge or Opera on a desktop computer.
+  </section>
+
+  <section class="card">
+    <h2>1. Pick your board</h2>
+    <div class="boards">
+      <label class="board">
+        <input type="radio" name="board" value="vocat" checked>
+        <span class="name">ESP-VoCat v1.2</span>
+        <span class="detail">ESP32-S3 · round 360×360 screen · plug into the USB-C port ·
+          push to talk with the touch pads on the cat's head</span>
+      </label>
+      <label class="board">
+        <input type="radio" name="board" value="korvo">
+        <span class="name">ESP32-S31-Korvo-1</span>
+        <span class="detail">ESP32-S31 · 800×480 screen · plug into the <b>UART</b> USB port,
+          power switch on · push to talk with any of the four buttons</span>
+      </label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>2. Flash</h2>
+    <label class="check">
+      <input type="checkbox" id="with-model" checked>
+      Also write the speech model (14.5 MB). Needed the first time; it stays on the board
+      across firmware updates, so you can skip it later. Takes a few minutes.
+    </label>
+    <button id="flash">Connect and flash</button>
+    <div id="progress" hidden>
+      <div class="step" id="step"></div>
+      <progress id="bar" max="100" value="0"></progress>
+    </div>
+    <p id="result" class="result"></p>
+  </section>
+
+  <section class="card">
+    <h2>3. Talk to it</h2>
+    <p>After flashing, the board restarts and is ready in about a second. Hold a pad
+      (VoCat) or a button (Korvo), speak for up to 10 seconds, let go. It recognises
+      English, German, French, Spanish, Italian, Dutch and Polish, and detects which
+      one you spoke. A 2.5 s phrase takes about 15–20 s to transcribe.</p>
+  </section>
+
+  <details class="card">
+    <summary>Log</summary>
+    <pre id="log"></pre>
+  </details>
+
+  <footer>
+    <p><span id="version"></span>
+      Firmware: <a href="https://github.com/Hahihula/whistle-esp">whistle-esp</a> ·
+      engine: <a href="https://github.com/Hahihula/cactus-whistle-rs">cactus-whistle-rs</a> ·
+      flashing: <a href="https://github.com/espressif/esptool-js">esptool-js</a>.</p>
+    <p>The speech model is <a href="https://huggingface.co/Cactus-Compute/whistle">Cactus Whistle</a>
+      by <a href="https://cactuscompute.com">Cactus Compute</a> (Apache-2.0), trimmed to
+      4 of its 8 decoder layers.</p>
+  </footer>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>

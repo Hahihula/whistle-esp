@@ -7,17 +7,14 @@ license      = "MIT OR Apache-2.0"
 publish      = false
 
 [dependencies]
-# The engine (pure Rust, from crates.io once published).
-cactus-whistle = { path = "../../cactus-whistle-rs/whistle" }
-# cactus-whistle = { version = "0.1" }
+# The engine (pure Rust).
+cactus-whistle = { git = "https://github.com/Hahihula/cactus-whistle-rs", tag = "v0.1.0" }
 # PIE int8 dot products, installed into the engine by whistle-common.
-esp-pie = { path = "../../esp-pie", features = ["esp32s3"] }
+esp-pie = { git = "https://github.com/Hahihula/esp-pie", tag = "v0.1.0", features = ["esp32s3"] }
 # Inference core, helper core, audio and text helpers shared with korvo/.
 whistle-common = { path = "../common" }
-# esp-pie = { git = "https://github.com/Hahihula/esp-pie", tag = "v0.1.0", features = ["esp32s3"] }
-# Board support. Local path while developing; a git tag once released:
-# esp-vocat = { git = "https://github.com/Hahihula/esp-vocat-rust-examples", tag = "v0.1.0", features = ["log"] }
-esp-vocat = { path = "../../vocat-rust-examples/esp-vocat", features = ["log"] }
+# Board support (esp-vocat-rust-examples).
+esp-vocat = { git = "https://github.com/Hahihula/esp-vocat-rust-examples", tag = "v0.1.0", features = ["log"] }
 
 esp-hal = { version = "~1.2.2", features = ["esp32s3", "log-04", "unstable"] }
 esp-rtos = { version = "0.4.0", features = ["embassy", "esp-alloc", "esp32s3", "log-04"] }

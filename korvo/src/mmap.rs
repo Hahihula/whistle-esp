@@ -70,6 +70,9 @@ pub unsafe fn map_flash(flash_offset: u32, len: usize) -> Result<(&'static [u8],
         }
         let vaddr = FLASH_VADDR + first_free * PAGE;
         Cache_Invalidate_Addr(CACHE_MAP_L1_DCACHE, vaddr as u32, (pages * PAGE) as u32);
-        Ok((core::slice::from_raw_parts(vaddr as *const u8, len), first_free))
+        Ok((
+            core::slice::from_raw_parts(vaddr as *const u8, len),
+            first_free,
+        ))
     }
 }

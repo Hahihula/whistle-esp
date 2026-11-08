@@ -68,7 +68,11 @@ impl Mask {
             usize::from(width) * usize::from(height),
             "splash mask: size does not match its header"
         );
-        Mask { width, height, data }
+        Mask {
+            width,
+            height,
+            data,
+        }
     }
 
     /// The width of the mark in pixels.
@@ -258,8 +262,10 @@ impl Splash {
         let scale = name_scale.max(1);
         let esp_name_h = font.character_size.height as i32 * scale as i32;
         let cat_name_h = font_b.character_size.height as i32 * scale as i32;
-        let esp_name_w = ESPRESSIF_NAME.len() as i32 * font.character_size.width as i32 * scale as i32;
-        let cat_name_w = CACTUS_NAME.len() as i32 * font_b.character_size.width as i32 * scale as i32;
+        let esp_name_w =
+            ESPRESSIF_NAME.len() as i32 * font.character_size.width as i32 * scale as i32;
+        let cat_name_w =
+            CACTUS_NAME.len() as i32 * font_b.character_size.width as i32 * scale as i32;
 
         let esp_row = ew + esp_name_w;
         let cat_row = cw + cat_name_w;
@@ -391,11 +397,13 @@ fn draw_name<D: DrawTarget<Color = Rgb565>>(
     match scale {
         2 => {
             let mut scaled = Scaled::<_, 2>::new(target, at);
-            let _ = Text::with_baseline(name, Point::zero(), style, Baseline::Top).draw(&mut scaled);
+            let _ =
+                Text::with_baseline(name, Point::zero(), style, Baseline::Top).draw(&mut scaled);
         }
         3 => {
             let mut scaled = Scaled::<_, 3>::new(target, at);
-            let _ = Text::with_baseline(name, Point::zero(), style, Baseline::Top).draw(&mut scaled);
+            let _ =
+                Text::with_baseline(name, Point::zero(), style, Baseline::Top).draw(&mut scaled);
         }
         _ => {
             let _ = Text::with_baseline(name, at, style, Baseline::Top).draw(target);

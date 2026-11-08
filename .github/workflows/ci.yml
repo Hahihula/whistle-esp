@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Formatting of every crate, and the host workspace (whistle-common, xtask).
+  host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo fmt --check --manifest-path vocat/Cargo.toml
+      - run: cargo fmt --check --manifest-path korvo/Cargo.toml
+      - run: cargo clippy --workspace -- -D warnings
+      - run: cargo xtask help
+
+  korvo:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: korvo
+    steps:
+      - uses: actions/checkout@v4
+      # korvo/rust-toolchain.toml: stable with rust-src and the target.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: riscv32imafc-unknown-none-elf
+          components: rust-src, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: korvo
+      - run: cargo clippy --release -- -D warnings
+      - run: cargo build --release
+      - run: cargo build --release --features selftest
+      - run: cargo build --release --features fast
+
+  vocat:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: vocat
+    steps:
+      - uses: actions/checkout@v4
+      - uses: esp-rs/xtensa-toolchain@v1.6
+        with:
+          default: true
+          buildtargets: esp32s3
+          ldproxy: false
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: vocat
+      - run: cargo clippy --release -- -D warnings
+      - run: cargo build --release
+      - run: cargo build --release --features selftest

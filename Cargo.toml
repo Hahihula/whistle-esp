@@ -14,8 +14,6 @@ license      = "MIT OR Apache-2.0"
 repository   = "https://github.com/Hahihula/whistle-esp"
 
 [workspace.dependencies]
-# Local paths while developing; git tags once released:
-# cactus-whistle = "0.1"
-# esp-pie        = { git = "https://github.com/Hahihula/esp-pie", tag = "v0.1.0" }
-cactus-whistle = { path = "../cactus-whistle-rs/whistle" }
-esp-pie        = { path = "../esp-pie" }
+# Released versions, by git tag (cactus-whistle moves to crates.io once published).
+cactus-whistle = { git = "https://github.com/Hahihula/cactus-whistle-rs", tag = "v0.1.0" }
+esp-pie        = { git = "https://github.com/Hahihula/esp-pie", tag = "v0.1.0" }

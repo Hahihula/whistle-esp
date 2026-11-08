@@ -10,7 +10,9 @@ use alloc::{boxed::Box, format, string::String, vec::Vec};
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use cactus_whistle::{LANGS, Spec, Whistle, par::Int8Help};
-use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel, signal::Signal};
+use embassy_sync::{
+    blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel, signal::Signal,
+};
 use embassy_time::{Duration, Instant, Timer, block_for};
 use log::info;
 
@@ -97,8 +99,14 @@ pub fn inference_core(model: &'static [u8], cfg: Config) {
     // copy in PSRAM streams faster than the flash mapping.
     let head: &'static [u8] = Box::leak(w.emb_bytes().to_vec().into_boxed_slice());
     w.set_emb_bytes(head);
-    info!("model open: {} decoder layers, head {} KiB copied to PSRAM", w.depth, head.len() / 1024);
-    send(Msg::Ready { load_ms: t0.elapsed().as_millis() as u32 });
+    info!(
+        "model open: {} decoder layers, head {} KiB copied to PSRAM",
+        w.depth,
+        head.len() / 1024
+    );
+    send(Msg::Ready {
+        load_ms: t0.elapsed().as_millis() as u32,
+    });
     if let Some(f) = cfg.after_open {
         f(model, head);
     }
@@ -205,12 +213,17 @@ fn run(w: &mut Whistle, x: &[f32], selftest: bool, cfg: &Config) {
         }
     };
     let enc_ms = t0.elapsed().as_millis() as u32;
-    let fnv = enc.iter().fold(0x811C_9DC5u32, |h, v| (h ^ v.to_bits()).wrapping_mul(0x0100_0193));
+    let fnv = enc.iter().fold(0x811C_9DC5u32, |h, v| {
+        (h ^ v.to_bits()).wrapping_mul(0x0100_0193)
+    });
     let t1 = Instant::now();
     let ids = w.decode(&enc, t, None, 320);
     let dec_ms = t1.elapsed().as_millis() as u32;
     BUSY.store(false, Ordering::Release);
-    for (name, v) in cactus_whistle::prof::NAMES.iter().zip(cactus_whistle::prof::read()) {
+    for (name, v) in cactus_whistle::prof::NAMES
+        .iter()
+        .zip(cactus_whistle::prof::read())
+    {
         info!("  prof {name:<9} {:>7} ms", v / 1000);
     }
     info!("  heap free {} KiB", (cfg.heap_free)() / 1024);

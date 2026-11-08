@@ -25,6 +25,7 @@ mod ui;
 use alloc::vec::Vec;
 use core::sync::atomic::{AtomicBool, Ordering};
 
+use cactus_whistle::{Spec, par::Int8Help};
 use embassy_executor::Spawner;
 use embassy_futures::select::{Either, select};
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
@@ -33,7 +34,6 @@ use esp_backtrace as _;
 use esp_hal::{system::Stack, timer::timg::TimerGroup};
 use log::{error, info, warn};
 use static_cell::ConstStaticCell;
-use cactus_whistle::{Spec, par::Int8Help};
 
 // Board support: the esp-vocat library from esp-vocat-rust-examples.
 use esp_vocat::{
@@ -83,7 +83,10 @@ static RECORDING: AtomicBool = AtomicBool::new(false);
 static CLIP: Signal<CriticalSectionRawMutex, Vec<i16>> = Signal::new();
 static CORE1_STACK: ConstStaticCell<Stack<{ 96 * 1024 }>> = ConstStaticCell::new(Stack::new());
 
-#[allow(clippy::large_stack_frames, reason = "main holds the LCD and codec futures")]
+#[allow(
+    clippy::large_stack_frames,
+    reason = "main holds the LCD and codec futures"
+)]
 #[esp_rtos::main]
 async fn main(spawner: Spawner) -> ! {
     let p = board::init();
@@ -96,7 +99,10 @@ async fn main(spawner: Spawner) -> ! {
     let timg0 = TimerGroup::new(p.TIMG0);
     esp_rtos::start(timg0.timer0, p.FROM_CPU_INTR0);
     board::wait_for_console().await;
-    info!("=== Whistle speech recognition on ESP-VoCat ({}) ===", SPEC.name());
+    info!(
+        "=== Whistle speech recognition on ESP-VoCat ({}) ===",
+        SPEC.name()
+    );
     // Before PSRAM and the second core: see qio.rs.
     match qio::enable(SELFTEST_WAV) {
         Ok(r) => info!("flash: QIO on, {r:x?}"),
@@ -109,13 +115,20 @@ async fn main(spawner: Spawner) -> ! {
     esp_alloc::psram_allocator!(&psram);
     info!("PSRAM: {} KiB at {:#x}", psize / 1024, pstart as usize);
     let model = match unsafe {
-        accel::map_flash(pstart as usize + psize, accel::MODEL_FLASH_OFFSET, accel::MODEL_PARTITION_SIZE)
+        accel::map_flash(
+            pstart as usize + psize,
+            accel::MODEL_FLASH_OFFSET,
+            accel::MODEL_PARTITION_SIZE,
+        )
     } {
         Ok(m) => m,
         Err(e) => halt_log("cannot map the model partition", e).await,
     };
     let tag = u32::from_le_bytes([model[0], model[1], model[2], model[3]]);
-    info!("model partition mapped at {:#x}, tag {tag:#010x}", model.as_ptr() as usize);
+    info!(
+        "model partition mapped at {:#x}, tag {tag:#010x}",
+        model.as_ptr() as usize
+    );
     let model_ok = tag == cactus_whistle::cact::TAG4;
 
     let _power = board::peripheral_power_on(p.GPIO9);
@@ -123,7 +136,12 @@ async fn main(spawner: Spawner) -> ! {
     Timer::after(Duration::from_millis(20)).await;
 
     // I2S first: the ES7210 needs MCLK before it can be configured.
-    let pins = I2sInPins { mclk: p.GPIO42, bclk: p.GPIO40, ws: p.GPIO39, din: p.GPIO3 };
+    let pins = I2sInPins {
+        mclk: p.GPIO42,
+        bclk: p.GPIO40,
+        ws: p.GPIO39,
+        din: p.GPIO3,
+    };
     let input = match AudioIn::new(p.I2S0, p.DMA_CH1, pins, SAMPLE_RATE) {
         Ok(i) => i,
         Err(e) => halt_log("I2S init failed", e).await,
@@ -139,7 +157,7 @@ async fn main(spawner: Spawner) -> ! {
 
     let mut backlight = Backlight::new(p.LEDC, p.GPIO44);
     let mut reset = LcdReset::new(p.GPIO47);
-        let mut lcd = match Lcd::new(p.SPI2, p.DMA_CH0, esp_vocat::lcd_pins!(p), &mut reset).await {
+    let mut lcd = match Lcd::new(p.SPI2, p.DMA_CH0, esp_vocat::lcd_pins!(p), &mut reset).await {
         Ok(l) => l,
         Err(e) => halt_log("LCD init failed", e).await,
     };
@@ -158,19 +176,24 @@ async fn main(spawner: Spawner) -> ! {
     }
 
     // The model loads on the second core while the splash plays.
-    esp_rtos::start_second_core(p.CPU_CTRL, p.FROM_CPU_INTR1, CORE1_STACK.take(), move || {
-        inference::inference_core(
-            model,
-            Config {
-                spec: SPEC,
-                selftest_wav: SELFTEST.then_some(SELFTEST_WAV),
-                compare_specs: COMPARE_SPECS,
-                gate_db: GATE_DB,
-                heap_free: || esp_alloc::HEAP.free(),
-                after_open: if BENCH { Some(bench::run) } else { None },
-            },
-        )
-    });
+    esp_rtos::start_second_core(
+        p.CPU_CTRL,
+        p.FROM_CPU_INTR1,
+        CORE1_STACK.take(),
+        move || {
+            inference::inference_core(
+                model,
+                Config {
+                    spec: SPEC,
+                    selftest_wav: SELFTEST.then_some(SELFTEST_WAV),
+                    compare_specs: COMPARE_SPECS,
+                    gate_db: GATE_DB,
+                    heap_free: || esp_alloc::HEAP.free(),
+                    after_open: if BENCH { Some(bench::run) } else { None },
+                },
+            )
+        },
+    );
 
     // The backlight comes up, and with the `splash` feature the splash
     // plays: espressif, a heart, cactuscompute. Without the feature a
@@ -259,7 +282,11 @@ async fn main(spawner: Spawner) -> ! {
         let _ = select(released, Timer::after(Duration::from_secs(10))).await;
         RECORDING.store(false, Ordering::Release);
         let clip = CLIP.wait().await;
-        info!("recorded {} ms ({} samples)", t0.elapsed().as_millis(), clip.len());
+        info!(
+            "recorded {} ms ({} samples)",
+            t0.elapsed().as_millis(),
+            clip.len()
+        );
         if let Some(x) = audio::prepare(&clip) {
             TO_INFERENCE.signal(x);
             busy = true;

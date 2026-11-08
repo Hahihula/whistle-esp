@@ -129,7 +129,11 @@ unsafe fn flash_cmd(cmd: u8, mosi: u32, mosi_bits: u32, miso_bits: u32) -> u32 {
         wr(SPI1 + USER, user);
         wr(SPI1 + USER2, user2);
         let r = rd(SPI1 + W0);
-        if miso_bits >= 32 { r } else { r & ((1u32 << miso_bits) - 1) }
+        if miso_bits >= 32 {
+            r
+        } else {
+            r & ((1u32 << miso_bits) - 1)
+        }
     }
 }
 
@@ -189,13 +193,14 @@ unsafe fn switch(to_qio: bool, saved: (u32, u32, u32, u32, u32)) -> Result<Repor
         let id = flash_cmd(RDID, 0, 0, 24);
         let mfg = id & 0xFF;
         let dev = ((id >> 8) & 0xFF) << 8 | (id >> 16) & 0xFF;
-        let (m, bit) = if (mfg == 0x9D && dev & 0xCF00 == 0x4000) || (mfg == 0xC2 && dev & 0xFF00 == 0x2000) {
-            (QE_SR1_BIT6, 6)
-        } else if mfg == 0xC8 && dev & 0xFF00 == 0x6000 {
-            (QE_SR2_BIT1, 1)
-        } else {
-            (QE_SR16_BIT9, 9)
-        };
+        let (m, bit) =
+            if (mfg == 0x9D && dev & 0xCF00 == 0x4000) || (mfg == 0xC2 && dev & 0xFF00 == 0x2000) {
+                (QE_SR1_BIT6, 6)
+            } else if mfg == 0xC8 && dev & 0xFF00 == 0x6000 {
+                (QE_SR2_BIT1, 1)
+            } else {
+                (QE_SR16_BIT9, 9)
+            };
         let before = read_status(m);
         let mut after = before;
         let mut ok = true;
@@ -217,8 +222,15 @@ unsafe fn switch(to_qio: bool, saved: (u32, u32, u32, u32, u32)) -> Result<Repor
                 // controller. In DIO the boot path leaves them as GPIOs, and
                 // QIO reads then see IO2/IO3 stuck high.
                 esp_rom_spiflash_select_qio_pins(SPI_WP_GPIO, 0);
-                wr(SPI0 + CTRL, (ctrl0 & !(CTRL_FREAD_DIO | CTRL_FREAD_DUAL | CTRL_FREAD_QUAD)) | CTRL_FREAD_QIO);
-                wr(SPI0 + USER1, (user1_0 & !USER1_DUMMY_MASK) | SPI0_R_QIO_DUMMY_CYCLELEN);
+                wr(
+                    SPI0 + CTRL,
+                    (ctrl0 & !(CTRL_FREAD_DIO | CTRL_FREAD_DUAL | CTRL_FREAD_QUAD))
+                        | CTRL_FREAD_QIO,
+                );
+                wr(
+                    SPI0 + USER1,
+                    (user1_0 & !USER1_DUMMY_MASK) | SPI0_R_QIO_DUMMY_CYCLELEN,
+                );
                 wr(SPI0 + USER2, (user2_0 & !0xFFFF) | CMD_FASTRD_QIO);
             } else {
                 wr(SPI0 + CTRL, saved.0);
@@ -304,11 +316,20 @@ const ADDR: usize = 0x04;
 #[inline(always)]
 unsafe fn spi1_qio_read(addr: u32, dummy: u32, spi0_ctrl: u32) -> u32 {
     unsafe {
-        let (ctrl, user, user1, user2) = (rd(SPI1 + CTRL), rd(SPI1 + USER), rd(SPI1 + USER1), rd(SPI1 + USER2));
-        let c = (spi0_ctrl & !(CTRL_FREAD_DIO | CTRL_FREAD_DUAL | CTRL_FREAD_QUAD)) | CTRL_FREAD_QIO;
+        let (ctrl, user, user1, user2) = (
+            rd(SPI1 + CTRL),
+            rd(SPI1 + USER),
+            rd(SPI1 + USER1),
+            rd(SPI1 + USER2),
+        );
+        let c =
+            (spi0_ctrl & !(CTRL_FREAD_DIO | CTRL_FREAD_DUAL | CTRL_FREAD_QUAD)) | CTRL_FREAD_QIO;
         wr(SPI1 + CTRL, c);
         let u = (user & !(USER_MOSI | USER_MISO | USER_DUMMY | USER_ADDR | USER_COMMAND))
-            | USER_COMMAND | USER_ADDR | USER_MISO | if dummy > 0 { USER_DUMMY } else { 0 };
+            | USER_COMMAND
+            | USER_ADDR
+            | USER_MISO
+            | if dummy > 0 { USER_DUMMY } else { 0 };
         wr(SPI1 + USER, u);
         wr(SPI1 + USER1, (23 << 26) | dummy.saturating_sub(1));
         wr(SPI1 + USER2, (7 << 28) | CMD_FASTRD_QIO);
@@ -369,17 +390,26 @@ pub fn sweep(addr: u32, route_pins: bool) -> [u32; 8] {
 }
 
 fn checksum(b: &[u8]) -> u32 {
-    b.iter().fold(0x811C_9DC5u32, |h, &x| (h ^ x as u32).wrapping_mul(0x0100_0193))
+    b.iter().fold(0x811C_9DC5u32, |h, &x| {
+        (h ^ x as u32).wrapping_mul(0x0100_0193)
+    })
 }
 
 /// Switch to QIO and check that `probe` (flash-mapped data) reads back the
 /// same. On a mismatch the flash goes back to DIO.
 pub fn enable(probe: &[u8]) -> Result<Report, Error> {
     let want = checksum(probe);
-    let r = critical_section::with(|_| unsafe { switch(true, (0, 0, 0, 0, 0)) }).map_err(Error::QeNotSet)?;
+    let r = critical_section::with(|_| unsafe { switch(true, (0, 0, 0, 0, 0)) })
+        .map_err(Error::QeNotSet)?;
     // The switch invalidated the caches, so this reads flash in QIO.
     if checksum(probe) != want {
-        let saved = (r.spi0_ctrl.0, r.spi0_user1.0, r.spi0_user2.0, r.pads.0.0, r.pads.0.1);
+        let saved = (
+            r.spi0_ctrl.0,
+            r.spi0_user1.0,
+            r.spi0_user2.0,
+            r.pads.0.0,
+            r.pads.0.1,
+        );
         let _ = critical_section::with(|_| unsafe { switch(false, saved) });
         return Err(Error::Mismatch(r));
     }

@@ -73,10 +73,16 @@ fn main() -> ExitCode {
             Some(Ok(d)) => trim_model(d),
             Some(Err(_)) => Err(String::from("DEPTH must be a number")),
         },
-        Some("flash-model") => Board::parse(args.get(1)).and_then(|b| flash_model(b, &Opts::parse(&args[2..])?)),
-        Some("build") => Board::parse(args.get(1)).and_then(|b| cargo_firmware(b, "build", &Opts::parse(&args[2..])?)),
-        Some("run") => Board::parse(args.get(1)).and_then(|b| cargo_firmware(b, "run", &Opts::parse(&args[2..])?)),
-        Some("setup") => Board::parse(args.get(1)).and_then(|b| setup(b, &Opts::parse(&args[2..])?)),
+        Some("flash-model") => {
+            Board::parse(args.get(1)).and_then(|b| flash_model(b, &Opts::parse(&args[2..])?))
+        }
+        Some("build") => Board::parse(args.get(1))
+            .and_then(|b| cargo_firmware(b, "build", &Opts::parse(&args[2..])?)),
+        Some("run") => Board::parse(args.get(1))
+            .and_then(|b| cargo_firmware(b, "run", &Opts::parse(&args[2..])?)),
+        Some("setup") => {
+            Board::parse(args.get(1)).and_then(|b| setup(b, &Opts::parse(&args[2..])?))
+        }
         Some("help" | "-h" | "--help") | None => {
             println!("{USAGE}");
             Ok(())
@@ -124,7 +130,10 @@ impl Opts {
 
 /// The repository root (xtask lives one level below it).
 fn root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().to_path_buf()
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .to_path_buf()
 }
 
 fn model_dir() -> PathBuf {
@@ -144,19 +153,25 @@ fn fetch_model() -> Result<(), String> {
     let out = full_model();
     println!("downloading {MODEL_URL}");
     let part = out.with_extension("cact.part");
-    run(Command::new("curl").args(["--fail", "--location", "--progress-bar", "--output"]).arg(&part).arg(MODEL_URL))?;
+    run(Command::new("curl")
+        .args(["--fail", "--location", "--progress-bar", "--output"])
+        .arg(&part)
+        .arg(MODEL_URL))?;
     std::fs::rename(&part, &out).map_err(|e| e.to_string())?;
     // Fail early on an HTML error page or a format change.
     let blob = std::fs::read(&out).map_err(|e| e.to_string())?;
-    cactus_whistle::cact::Cact::open(&blob).map_err(|e| format!("{} is not a .cact v4 model: {e:?}", out.display()))?;
+    cactus_whistle::cact::Cact::open(&blob)
+        .map_err(|e| format!("{} is not a .cact v4 model: {e:?}", out.display()))?;
     println!("{} ({:.2} MB)", out.display(), blob.len() as f64 / 1e6);
     Ok(())
 }
 
 fn trim_model(depth: usize) -> Result<(), String> {
     let src = full_model();
-    let blob = std::fs::read(&src).map_err(|e| format!("{}: {e} (run `cargo fetch-model` first)", src.display()))?;
-    let t = cactus_whistle::ladder::trim(&blob, depth).map_err(|e| format!("cannot trim: {e:?}"))?;
+    let blob = std::fs::read(&src)
+        .map_err(|e| format!("{}: {e} (run `cargo fetch-model` first)", src.display()))?;
+    let t =
+        cactus_whistle::ladder::trim(&blob, depth).map_err(|e| format!("cannot trim: {e:?}"))?;
     let dst = trimmed_model(depth);
     std::fs::write(&dst, &t.blob).map_err(|e| format!("{}: {e}", dst.display()))?;
     println!(
@@ -175,12 +190,17 @@ fn model_partition(board: Board) -> Result<(u32, u32), String> {
     let csv = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
     let num = |s: &str| {
         let s = s.trim();
-        s.strip_prefix("0x").or(s.strip_prefix("0X")).map_or_else(|| s.parse(), |h| u32::from_str_radix(h, 16))
+        s.strip_prefix("0x")
+            .or(s.strip_prefix("0X"))
+            .map_or_else(|| s.parse(), |h| u32::from_str_radix(h, 16))
     };
     for line in csv.lines() {
         let f: Vec<&str> = line.split(',').map(str::trim).collect();
         if f.first() == Some(&"model") && f.len() >= 5 {
-            return Ok((num(f[3]).map_err(|e| e.to_string())?, num(f[4]).map_err(|e| e.to_string())?));
+            return Ok((
+                num(f[3]).map_err(|e| e.to_string())?,
+                num(f[4]).map_err(|e| e.to_string())?,
+            ));
         }
     }
     Err(format!("no `model` partition in {}", path.display()))
@@ -190,7 +210,12 @@ fn flash_model(board: Board, o: &Opts) -> Result<(), String> {
     let depth = o.depth.unwrap_or(DEFAULT_DEPTH);
     let file = trimmed_model(depth);
     let len = std::fs::metadata(&file)
-        .map_err(|e| format!("{}: {e} (run `cargo trim-model {depth}` first)", file.display()))?
+        .map_err(|e| {
+            format!(
+                "{}: {e} (run `cargo trim-model {depth}` first)",
+                file.display()
+            )
+        })?
         .len();
     let (offset, size) = model_partition(board)?;
     if len > size as u64 {
@@ -213,10 +238,14 @@ fn flash_model(board: Board, o: &Opts) -> Result<(), String> {
 /// apply.
 fn cargo_firmware(board: Board, verb: &str, o: &Opts) -> Result<(), String> {
     let mut args = vec![verb.to_string(), "--release".to_string()];
-    let features: Vec<&str> = [(o.fast, "fast"), (o.selftest, "selftest"), (o.splash, "splash")]
-        .into_iter()
-        .filter_map(|(on, f)| on.then_some(f))
-        .collect();
+    let features: Vec<&str> = [
+        (o.fast, "fast"),
+        (o.selftest, "selftest"),
+        (o.splash, "splash"),
+    ]
+    .into_iter()
+    .filter_map(|(on, f)| on.then_some(f))
+    .collect();
     if !features.is_empty() {
         args.extend(["--features".to_string(), features.join(",")]);
     }
@@ -224,7 +253,10 @@ fn cargo_firmware(board: Board, verb: &str, o: &Opts) -> Result<(), String> {
         Board::Vocat if !on_path("xtensa-esp32s3-elf-gcc") => {
             // espup's environment (Xtensa linker on PATH) isn't loaded in
             // this shell: load it for the build only.
-            let env = std::env::var("HOME").map(|h| PathBuf::from(h).join("export-esp.sh")).ok().filter(|p| p.exists());
+            let env = std::env::var("HOME")
+                .map(|h| PathBuf::from(h).join("export-esp.sh"))
+                .ok()
+                .filter(|p| p.exists());
             let Some(env) = env else {
                 return Err(String::from(
                     "the Xtensa linker is not on PATH: install the esp toolchain with `espup install` \
@@ -232,7 +264,10 @@ fn cargo_firmware(board: Board, verb: &str, o: &Opts) -> Result<(), String> {
                 ));
             };
             let mut c = Command::new("sh");
-            c.arg("-c").arg(format!(". '{}' && exec cargo \"$@\"", env.display())).arg("cargo").args(&args);
+            c.arg("-c")
+                .arg(format!(". '{}' && exec cargo \"$@\"", env.display()))
+                .arg("cargo")
+                .args(&args);
             c
         }
         _ => {
@@ -281,10 +316,17 @@ fn clean_cargo_env(cmd: &mut Command) {
 }
 
 fn on_path(exe: &str) -> bool {
-    std::env::var_os("PATH").is_some_and(|p| std::env::split_paths(&p).any(|d| d.join(exe).is_file()))
+    std::env::var_os("PATH")
+        .is_some_and(|p| std::env::split_paths(&p).any(|d| d.join(exe).is_file()))
 }
 
 fn run(cmd: &mut Command) -> Result<(), String> {
-    let status = cmd.status().map_err(|e| format!("{:?}: {e}", cmd.get_program()))?;
-    if status.success() { Ok(()) } else { Err(format!("{:?} failed ({status})", cmd.get_program())) }
+    let status = cmd
+        .status()
+        .map_err(|e| format!("{:?}: {e}", cmd.get_program()))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!("{:?} failed ({status})", cmd.get_program()))
+    }
 }

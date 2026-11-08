@@ -31,11 +31,22 @@ pub enum MapError {
 /// Call once, before anything else changes the MMU. The returned memory is
 /// whatever is in flash; the caller validates it.
 #[esp_hal::ram]
-pub unsafe fn map_flash(after: usize, flash_offset: u32, len: usize) -> Result<&'static [u8], MapError> {
+pub unsafe fn map_flash(
+    after: usize,
+    flash_offset: u32,
+    len: usize,
+) -> Result<&'static [u8], MapError> {
     unsafe extern "C" {
         fn Cache_Suspend_DCache() -> u32;
         fn Cache_Resume_DCache(param: u32);
-        fn cache_dbus_mmu_set(ext_ram: u32, vaddr: u32, paddr: u32, psize: u32, num: u32, fixed: u32) -> i32;
+        fn cache_dbus_mmu_set(
+            ext_ram: u32,
+            vaddr: u32,
+            paddr: u32,
+            psize: u32,
+            num: u32,
+            fixed: u32,
+        ) -> i32;
     }
     let vaddr = after.next_multiple_of(PAGE);
     let pages = len.div_ceil(PAGE);
@@ -45,7 +56,14 @@ pub unsafe fn map_flash(after: usize, flash_offset: u32, len: usize) -> Result<&
     }
     let rc = unsafe {
         Cache_Suspend_DCache();
-        let rc = cache_dbus_mmu_set(MMU_ACCESS_FLASH, vaddr as u32, flash_offset, 64, pages as u32, 0);
+        let rc = cache_dbus_mmu_set(
+            MMU_ACCESS_FLASH,
+            vaddr as u32,
+            flash_offset,
+            64,
+            pages as u32,
+            0,
+        );
         Cache_Resume_DCache(0);
         rc
     };

@@ -3,7 +3,7 @@
 use embassy_time::{Duration, Instant, Timer};
 use esp_vocat::display::{FrameBuffer, Lcd};
 
-use whistle_common::splash::{Splash, DURATION};
+use whistle_common::splash::{DURATION, Splash};
 
 /// Shows the splash on the LCD until it is over.
 pub async fn run(lcd: &mut Lcd<'_>, fb: &mut FrameBuffer) {

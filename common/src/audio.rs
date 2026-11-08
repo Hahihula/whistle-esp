@@ -33,13 +33,21 @@ pub fn rms_db(x: &[i16]) -> f32 {
         return -120.0;
     }
     let mean = x.iter().map(|&v| v as f32).sum::<f32>() / x.len() as f32;
-    let e = x.iter().map(|&v| (v as f32 - mean) * (v as f32 - mean)).sum::<f32>() / x.len() as f32;
+    let e = x
+        .iter()
+        .map(|&v| (v as f32 - mean) * (v as f32 - mean))
+        .sum::<f32>()
+        / x.len() as f32;
     20.0 * libm::log10f(libm::sqrtf(e).max(1.0) / 32768.0)
 }
 
 /// Peak level in dBFS.
 pub fn peak_db(x: &[i16]) -> f32 {
-    let p = x.iter().map(|&v| (v as i32).unsigned_abs()).max().unwrap_or(0);
+    let p = x
+        .iter()
+        .map(|&v| (v as i32).unsigned_abs())
+        .max()
+        .unwrap_or(0);
     20.0 * libm::log10f((p as f32).max(1.0) / 32768.0)
 }
 
@@ -51,7 +59,13 @@ pub fn parse_wav(b: &[u8]) -> Option<Vec<f32>> {
         let len = rd32(off + 4);
         if &b[off..off + 4] == b"data" {
             let d = &b[off + 8..(off + 8 + len).min(b.len())];
-            return Some(d.as_chunks::<2>().0.iter().map(|&c| i16::from_le_bytes(c) as f32 / 32768.0).collect());
+            return Some(
+                d.as_chunks::<2>()
+                    .0
+                    .iter()
+                    .map(|&c| i16::from_le_bytes(c) as f32 / 32768.0)
+                    .collect(),
+            );
         }
         off += 8 + len + (len & 1);
     }
