@@ -9,6 +9,10 @@ Compute's multilingual speech model (English, German, French, Spanish, Italian, 
 Polish, with language detection), on the
 [cactus-whistle-rs](https://github.com/Hahihula/cactus-whistle-rs) engine.
 
+**Try it without installing anything:** flash the firmware and the model straight
+from your browser at **[hahihula.github.io/whistle-esp](https://hahihula.github.io/whistle-esp/)**
+(Chrome or Edge on a desktop; it uses Web Serial).
+
 | board | chip | screen | push to talk | 2.5 s clip, 5-beam / greedy |
 |---|---|---|---|---|
 | [ESP-VoCat v1.2](https://github.com/Hahihula/esp-vocat-rust-examples) | ESP32-S3, 2x Xtensa LX7 + PIE | 360x360 round | either touch pad on the cat's head | 16.5 s / 10.6 s |
@@ -16,7 +20,8 @@ Polish, with language detection), on the
 
 ## Quick start
 
-You need:
+The quickest way is the [web flasher](https://hahihula.github.io/whistle-esp/): pick
+the board, plug it in, click flash. To build from source instead, you need:
 
 - [`espflash`](https://github.com/esp-rs/espflash) 4.x;
 - for the VoCat, the Xtensa Rust toolchain: `cargo install espup && espup install`;
@@ -61,6 +66,18 @@ Options:
 - `--depth N` (flash-model) flashes another depth, if it fits.
 
 These are shortcuts for `cargo xtask ...`; `cargo xtask help` lists everything.
+
+## Releases
+
+CI (`.github/workflows/ci.yml`) checks formatting, runs clippy and builds both
+firmwares on every push. Pushing a `v*` tag runs `release.yml`, which:
+- builds the flash images for both boards (bootloader, partition table and app, from
+  address 0, without touching the model partition);
+- trims the model;
+- attaches the images and the model to the GitHub release;
+- publishes the web flasher (`site/`) with those files on GitHub Pages.
+
+The flasher uses [esptool-js](https://github.com/espressif/esptool-js).
 
 `cargo xtask` needs no Xtensa environment in your shell: if the Xtensa linker isn't
 on `PATH`, it loads `~/export-esp.sh` for the VoCat build itself.
