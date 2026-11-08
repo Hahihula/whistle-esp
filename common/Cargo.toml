@@ -1,0 +1,20 @@
+[package]
+name         = "whistle-common"
+description  = "The board-independent half of the whistle-esp firmwares: inference core, helper core, audio and text helpers"
+edition.workspace      = true
+rust-version.workspace = true
+version.workspace      = true
+license.workspace      = true
+repository.workspace   = true
+publish      = false
+
+[dependencies]
+# No chip features here: each firmware turns on its own (esp-pie: esp32s3 /
+# esp32s31; cactus-whistle: riscv-fpu).
+cactus-whistle  = { workspace = true }
+esp-pie         = { workspace = true }
+embassy-sync    = "0.8"
+embassy-time    = "0.5"
+embassy-futures = "0.1"
+log             = "0.4.27"
+libm            = "0.2"

@@ -1,0 +1,10 @@
+# Host commands, run from the repository root. See README.md.
+[alias]
+xtask       = "run --quiet --package xtask --"
+fetch-model = "xtask fetch-model"
+trim-model  = "xtask trim-model"
+flash-model = "xtask flash-model"
+build-vocat = "xtask build vocat"
+run-vocat   = "xtask run vocat"
+build-korvo = "xtask build korvo"
+run-korvo   = "xtask run korvo"

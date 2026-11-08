@@ -1,0 +1,66 @@
+[package]
+edition      = "2024"
+name         = "vocat-whistle"
+rust-version = "1.95"
+version      = "0.1.0"
+license      = "MIT OR Apache-2.0"
+publish      = false
+
+[dependencies]
+# The engine (pure Rust, from crates.io once published).
+cactus-whistle = { path = "../../cactus-whistle-rs/whistle" }
+# cactus-whistle = { version = "0.1" }
+# PIE int8 dot products, installed into the engine by whistle-common.
+esp-pie = { path = "../../esp-pie", features = ["esp32s3"] }
+# Inference core, helper core, audio and text helpers shared with korvo/.
+whistle-common = { path = "../common" }
+# esp-pie = { git = "https://github.com/Hahihula/esp-pie", tag = "v0.1.0", features = ["esp32s3"] }
+# Board support. Local path while developing; a git tag once released:
+# esp-vocat = { git = "https://github.com/Hahihula/esp-vocat-rust-examples", tag = "v0.1.0", features = ["log"] }
+esp-vocat = { path = "../../vocat-rust-examples/esp-vocat", features = ["log"] }
+
+esp-hal = { version = "~1.2.2", features = ["esp32s3", "log-04", "unstable"] }
+esp-rtos = { version = "0.4.0", features = ["embassy", "esp-alloc", "esp32s3", "log-04"] }
+esp-bootloader-esp-idf = { version = "0.6.0", features = ["esp32s3", "log-04"] }
+esp-alloc = { version = "0.11.0", features = ["esp32s3"] }
+esp-backtrace = { version = "0.20.0", features = ["esp32s3", "panic-handler", "println"] }
+# The console is the USB-Serial-JTAG on the USB-C port. UART0 TX (GPIO43)
+# drives the green LED on this board, so never print to the UART.
+esp-println = { version = "0.18.0", default-features = false, features = [
+  "colors",
+  "critical-section",
+  "esp32s3",
+  "jtag-serial",
+  "log-04",
+] }
+log = "0.4.27"
+
+embassy-executor   = { version = "0.10.0", features = ["log"] }
+embassy-time       = { version = "0.5.0", features = ["log"] }
+embassy-futures    = "0.1"
+embassy-sync       = "0.8"
+embedded-hal-async = "1.0"
+embedded-graphics  = "0.8"
+libm               = "0.2"
+critical-section   = "1.2.0"
+static_cell        = "2.1.1"
+
+[features]
+# Greedy decoding (Spec::GuideFast): about half the decoding time of the
+# default 5-beam search, ~3 WER points worse.
+fast = ["cactus-whistle/fast"]
+# Transcribe a built-in clip at boot and log its timings and encoder
+# checksum (for development and automated checks; the board is busy for
+# ~20 s). `cargo run-vocat --selftest` / `cargo run-korvo --selftest`.
+selftest = []
+
+[profile.dev]
+opt-level = "s"
+
+[profile.release]
+codegen-units = 1
+debug         = 2
+# Thin, not fat: with fat LTO the Xtensa LLVM backend fails ("Cannot select:
+# XtensaISD::PCREL_WRAPPER") on esp-hal's DMA tables once Whistle is linked in.
+lto           = "thin"
+opt-level     = 3
