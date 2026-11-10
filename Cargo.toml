@@ -1,19 +1,19 @@
 # The host-side workspace: the shared firmware crate and the xtask runner.
-# The firmwares (vocat/, korvo/) build for their chips with their own
+# The firmwares (vocat/, korvo/, p4/) build for their chips with their own
 # toolchains, so they are separate packages; `cargo xtask` drives them.
 [workspace]
 resolver = "2"
 members  = ["common", "xtask"]
-exclude  = ["vocat", "korvo"]
+exclude  = ["vocat", "korvo", "p4"]
 
 [workspace.package]
 edition      = "2024"
 rust-version = "1.88"
-version      = "0.1.0"
+version      = "0.2.0"
 license      = "MIT OR Apache-2.0"
 repository   = "https://github.com/Hahihula/whistle-esp"
 
 [workspace.dependencies]
 # Released versions, by git tag (cactus-whistle moves to crates.io once published).
 cactus-whistle = { git = "https://github.com/Hahihula/cactus-whistle-rs", tag = "v0.1.0" }
-esp-pie        = { git = "https://github.com/Hahihula/esp-pie", tag = "v0.1.0" }
+esp-pie        = { git = "https://github.com/Hahihula/esp-pie", tag = "v0.2.0" }

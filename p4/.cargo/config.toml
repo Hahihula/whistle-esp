@@ -1,0 +1,11 @@
+# Keep compilation settings in this file and user/runtime settings in `esp-config.toml`.
+include = ["esp-config.toml"]
+
+[target.riscv32imafc-unknown-none-elf]
+# The model lives in its own partition (partitions.csv); flash it once with:
+#   cargo flash-model p4   (in the repository root)
+runner = "espflash flash --monitor --chip esp32p4 --partition-table partitions.csv"
+
+[build]
+rustflags = ["-C", "force-frame-pointers"]
+target    = "riscv32imafc-unknown-none-elf"

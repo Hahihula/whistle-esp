@@ -159,8 +159,8 @@ dependencies = [
 
 [[package]]
 name = "esp-pie"
-version = "0.1.0"
-source = "git+https://github.com/Hahihula/esp-pie?tag=v0.1.0#c784e6f461d8f83cb0af8381050854924cfb798c"
+version = "0.2.0"
+source = "git+https://github.com/Hahihula/esp-pie?tag=v0.2.0#50761781f18b788fd7505853cbf92d15422721b7"
 
 [[package]]
 name = "float-cmp"
@@ -264,7 +264,7 @@ checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 
 [[package]]
 name = "whistle-common"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cactus-whistle",
  "embassy-futures",
@@ -278,7 +278,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cactus-whistle",
 ]

@@ -3,10 +3,10 @@
 //!
 //!     cargo xtask fetch-model
 //!     cargo xtask trim-model [DEPTH]
-//!     cargo xtask flash-model vocat|korvo [--depth N] [--port PORT]
-//!     cargo xtask build vocat|korvo [--fast] [--splash]
-//!     cargo xtask run vocat|korvo [--fast] [--splash] [--port PORT]
-//!     cargo xtask setup vocat|korvo [--splash] [--port PORT]
+//!     cargo xtask flash-model vocat|korvo|p4 [--depth N] [--port PORT]
+//!     cargo xtask build vocat|korvo|p4 [--fast] [--splash]
+//!     cargo xtask run vocat|korvo|p4 [--fast] [--splash] [--port PORT]
+//!     cargo xtask setup vocat|korvo|p4 [--splash] [--port PORT]
 
 use std::{
     path::{Path, PathBuf},
@@ -32,13 +32,16 @@ cargo xtask <command>
   setup BOARD [--splash] [--port PORT]
                                  all of the above, skipping steps already done
 
-BOARD is vocat (ESP-VoCat, ESP32-S3) or korvo (ESP32-S31-Korvo-1).
-Aliases: cargo fetch-model, trim-model, flash-model, build-vocat, run-vocat, build-korvo, run-korvo.";
+BOARD is vocat (ESP-VoCat, ESP32-S3), korvo (ESP32-S31-Korvo-1) or p4
+(ESP32-P4X-Function-EV-Board; no --splash yet).
+Aliases: cargo fetch-model, trim-model, flash-model, build-vocat, run-vocat, build-korvo, run-korvo,
+build-p4, run-p4.";
 
 #[derive(Clone, Copy)]
 enum Board {
     Vocat,
     Korvo,
+    P4,
 }
 
 impl Board {
@@ -46,20 +49,23 @@ impl Board {
         match s.map(String::as_str) {
             Some("vocat") => Ok(Board::Vocat),
             Some("korvo") => Ok(Board::Korvo),
-            Some(other) => Err(format!("unknown board {other}: use vocat or korvo")),
-            None => Err(String::from("which board? vocat or korvo")),
+            Some("p4") => Ok(Board::P4),
+            Some(other) => Err(format!("unknown board {other}: use vocat, korvo or p4")),
+            None => Err(String::from("which board? vocat, korvo or p4")),
         }
     }
     fn dir(self) -> PathBuf {
         root().join(match self {
             Board::Vocat => "vocat",
             Board::Korvo => "korvo",
+            Board::P4 => "p4",
         })
     }
     fn chip(self) -> &'static str {
         match self {
             Board::Vocat => "esp32s3",
             Board::Korvo => "esp32s31",
+            Board::P4 => "esp32p4",
         }
     }
 }
@@ -237,6 +243,9 @@ fn flash_model(board: Board, o: &Opts) -> Result<(), String> {
 /// toolchain (rust-toolchain.toml), target and runner (.cargo/config.toml)
 /// apply.
 fn cargo_firmware(board: Board, verb: &str, o: &Opts) -> Result<(), String> {
+    if o.splash && matches!(board, Board::P4) {
+        return Err(String::from("the p4 firmware has no boot splash yet"));
+    }
     let mut args = vec![verb.to_string(), "--release".to_string()];
     let features: Vec<&str> = [
         (o.fast, "fast"),

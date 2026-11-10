@@ -9,6 +9,7 @@ const MODEL = { url: "model/whistle_d4.cact", address: 0x210000 };
 const BOARDS = {
   vocat: { chip: "ESP32-S3", firmware: "firmware/vocat.bin" },
   korvo: { chip: "ESP32-S31", firmware: "firmware/korvo.bin" },
+  p4: { chip: "ESP32-P4", firmware: "firmware/p4.bin" },
 };
 const BAUD = 921600;
 
@@ -71,7 +72,7 @@ async function flash() {
     terminal.writeLine(`Connected: ${chip}`);
     // e.g. "ESP32-S3 (QFN56) (revision v0.2)": the first word is the chip.
     if (chip.split(" ")[0] !== board.chip) {
-      throw new Error(`This is an ${chip}, not the ${board.chip} the selected board has. Pick the other board.`);
+      throw new Error(`This is an ${chip}, not the ${board.chip} the selected board has. Pick another board.`);
     }
 
     const sizes = files.map((f) => f.data.length);
@@ -91,7 +92,7 @@ async function flash() {
     });
     step("Restarting the board…", 100);
     await loader.after("hard_reset");
-    result("Done. The board restarts and is ready in about a second: hold a pad or button and speak.", true);
+    result("Done. The board restarts and is ready in about a second: hold a pad or button (P4: BOOT) and speak.", true);
   } catch (e) {
     if (e.name === "NotFoundError") {
       result("No port selected.", false);

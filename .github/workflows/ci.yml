@@ -22,6 +22,7 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo fmt --check --manifest-path vocat/Cargo.toml
       - run: cargo fmt --check --manifest-path korvo/Cargo.toml
+      - run: cargo fmt --check --manifest-path p4/Cargo.toml
       - run: cargo clippy --workspace -- -D warnings
       - run: cargo xtask help
 
@@ -40,6 +41,26 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: korvo
+      - run: cargo clippy --release -- -D warnings
+      - run: cargo build --release
+      - run: cargo build --release --features selftest
+      - run: cargo build --release --features fast
+
+  p4:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: p4
+    steps:
+      - uses: actions/checkout@v4
+      # p4/rust-toolchain.toml: stable with rust-src and the target.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: riscv32imafc-unknown-none-elf
+          components: rust-src, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: p4
       - run: cargo clippy --release -- -D warnings
       - run: cargo build --release
       - run: cargo build --release --features selftest

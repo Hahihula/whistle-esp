@@ -10,7 +10,7 @@ publish      = false
 # The engine (pure Rust).
 cactus-whistle = { git = "https://github.com/Hahihula/cactus-whistle-rs", tag = "v0.1.0" }
 # PIE int8 dot products, installed into the engine by whistle-common.
-esp-pie = { git = "https://github.com/Hahihula/esp-pie", tag = "v0.1.0", features = ["esp32s3"] }
+esp-pie = { git = "https://github.com/Hahihula/esp-pie", tag = "v0.2.0", features = ["esp32s3"] }
 # Inference core, helper core, audio and text helpers shared with korvo/.
 whistle-common = { path = "../common" }
 # Board support (esp-vocat-rust-examples).

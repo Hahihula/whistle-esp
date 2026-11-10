@@ -816,8 +816,8 @@ source = "git+https://github.com/esp-rs/esp-hal?rev=33f9b0f7c36ac47edbd015808b53
 
 [[package]]
 name = "esp-pie"
-version = "0.1.0"
-source = "git+https://github.com/Hahihula/esp-pie?tag=v0.1.0#c784e6f461d8f83cb0af8381050854924cfb798c"
+version = "0.2.0"
+source = "git+https://github.com/Hahihula/esp-pie?tag=v0.2.0#50761781f18b788fd7505853cbf92d15422721b7"
 
 [[package]]
 name = "esp-println"

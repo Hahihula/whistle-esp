@@ -17,6 +17,7 @@ from your browser at **[hahihula.github.io/whistle-esp](https://hahihula.github.
 |---|---|---|---|---|
 | [ESP-VoCat v1.2](https://github.com/Hahihula/esp-vocat-rust-examples) | ESP32-S3, 2x Xtensa LX7 + PIE | 360x360 round | either touch pad on the cat's head | 16.5 s / 10.6 s |
 | [ESP32-S31-Korvo-1](https://github.com/Hahihula/s31-korvo-1-rust-examples) | ESP32-S31, 2x RISC-V, PIE on core 1 | 800x480 | any of the four buttons | 20.0 s / 13.6 s |
+| [ESP32-P4X-Function-EV-Board](https://github.com/Hahihula/ESP32-P4X-Function-EV-Board-rust-examples) | ESP32-P4 v3.x, 2x RISC-V + PIE | 1024x600 (7" MIPI-DSI, optional) | BOOT | 15.4 s / 12.0 s |
 
 ## Quick start
 
@@ -25,18 +26,20 @@ the board, plug it in, click flash. To build from source instead, you need:
 
 - [`espflash`](https://github.com/esp-rs/espflash) 4.x;
 - for the VoCat, the Xtensa Rust toolchain: `cargo install espup && espup install`;
-- for the Korvo, stable Rust (the toolchain file adds `rust-src` and the target).
+- for the Korvo and the P4, stable Rust (the toolchain file adds `rust-src` and
+  the target).
 
 Then, in the repository root:
 
 ```bash
-cargo xtask setup vocat     # or: cargo xtask setup korvo
+cargo xtask setup vocat     # or: cargo xtask setup korvo / p4
 ```
 
 This downloads the model (16.9 MB) from Hugging Face and trims it to 4 of its 8
 decoder layers (14.5 MB, so it fits the 16 MB flash). Then it writes the model into
 its flash partition, builds and flashes the firmware, and opens the serial monitor.
-Later runs skip the download and the trim. On the Korvo use the **UART** USB port.
+Later runs skip the download and the trim. On the Korvo use the **UART** USB port,
+on the P4 the **USB Serial/JTAG** port.
 
 The board is ready about a second after boot: hold a pad or button, speak (up to
 10 s) and let go.
@@ -49,9 +52,9 @@ All from the repository root:
 |---|---|
 | `cargo fetch-model` | download `model/whistle.cact` |
 | `cargo trim-model [DEPTH]` | write `model/whistle_d4.cact` (or another depth) |
-| `cargo flash-model vocat\|korvo` | write the trimmed model into the board's `model` partition (once; it survives firmware updates) |
-| `cargo run-vocat`, `cargo run-korvo` | build, flash and monitor the firmware |
-| `cargo build-vocat`, `cargo build-korvo` | build only |
+| `cargo flash-model vocat\|korvo\|p4` | write the trimmed model into the board's `model` partition (once; it survives firmware updates) |
+| `cargo run-vocat`, `cargo run-korvo`, `cargo run-p4` | build, flash and monitor the firmware |
+| `cargo build-vocat`, `cargo build-korvo`, `cargo build-p4` | build only |
 
 Options:
 - `--fast` (build/run) switches to greedy decoding, which roughly halves decoding
@@ -61,7 +64,7 @@ Options:
   development and automated checks; it keeps the board busy for about 16-20 s.
 - `--splash` (build/run) plays the boot splash (see below). It is off by default: a
   production firmware goes straight to the user interface, without the animation, its
-  marks and the couple of seconds it takes.
+  marks and the couple of seconds it takes. The P4 firmware has no splash yet.
 - `--port PORT` picks the serial port when several boards are connected.
 - `--depth N` (flash-model) flashes another depth, if it fits.
 
@@ -69,9 +72,9 @@ These are shortcuts for `cargo xtask ...`; `cargo xtask help` lists everything.
 
 ## Releases
 
-CI (`.github/workflows/ci.yml`) checks formatting, runs clippy and builds both
-firmwares on every push. Pushing a `v*` tag runs `release.yml`, which:
-- builds the flash images for both boards (bootloader, partition table and app, from
+CI (`.github/workflows/ci.yml`) checks formatting, runs clippy and builds every
+firmware on every push. Pushing a `v*` tag runs `release.yml`, which:
+- builds the flash images for every board (bootloader, partition table and app, from
   address 0, without touching the model partition);
 - trims the model;
 - attaches the images and the model to the GitHub release;
@@ -88,6 +91,7 @@ on `PATH`, it loads `~/export-esp.sh` for the VoCat build itself.
 |---|---|
 | `vocat/` | ESP-VoCat firmware: board bring-up, touch pads, round-screen UI, flash mapping and the runtime QIO switch |
 | `korvo/` | ESP32-S31-Korvo-1 firmware: board bring-up, buttons, 800x480 UI, flash mapping |
+| `p4/` | ESP32-P4X-Function-EV-Board firmware: board bring-up, BOOT button, 1024x600 UI, flash mapping, 32 to 16 kHz decimation |
 | `common/` | `whistle-common`, the board-independent half: the inference core's loop, the helper core's task, the message channel, audio and text helpers, the boot splash |
 | `xtask/` | the host commands above |
 | `tools/` | the splash asset generator and a host preview of the splash |
@@ -96,16 +100,17 @@ on `PATH`, it loads `~/export-esp.sh` for the VoCat build itself.
 
 The firmwares are separate Cargo packages, because each builds for its own chip with
 its own toolchain. `common/` and `xtask/` form the host workspace. Board support comes
-from the [esp-vocat](https://github.com/Hahihula/esp-vocat-rust-examples) and
-[esp32-s31-korvo](https://github.com/Hahihula/s31-korvo-1-rust-examples) libraries,
+from the [esp-vocat](https://github.com/Hahihula/esp-vocat-rust-examples),
+[esp32-s31-korvo](https://github.com/Hahihula/s31-korvo-1-rust-examples) and
+[esp32-p4-function-ev](https://github.com/Hahihula/ESP32-P4X-Function-EV-Board-rust-examples) libraries,
 and the SIMD kernels from [esp-pie](https://github.com/Hahihula/esp-pie).
 
 ## How it works
 
-Both firmwares split the work the same way:
+All firmwares split the work the same way:
 
 - **The core with PIE runs Whistle** and blocks while it transcribes:
-  `whistle_common::inference::inference_core`. Core 1 on both boards, the only one
+  `whistle_common::inference::inference_core`. Core 1 on every board, the only one
   with PIE on the S31. It enables PIE and checks it against plain integer math, opens
   the model in place from flash, and copies the output head (8199 rows, read in full
   for every token) to PSRAM. Then it waits for recordings (with `--selftest`, after
@@ -113,16 +118,21 @@ Both firmwares split the work the same way:
 - **The other core runs Embassy:** microphones, buttons, the screen, and
   `inference::helper`, which takes matmul rows, convolutions and attention heads off
   the inference core in bursts of at most 15 ms. The microphone DMA ring holds only
-  about 128 ms, so it has to keep being drained. On the S3 the helper has PIE too and
-  takes any row. On the S31 it takes float work and the decoder's small int8 matmuls,
-  using the plain dot product.
+  about 128 ms, so it has to keep being drained. On the S3 and the P4 the helper has
+  PIE too and takes any row. On the S31 it takes float work and the decoder's small
+  int8 matmuls, using the plain dot product. On the P4 the helper's work units and
+  full-screen redraws kept Embassy busy past the ring's 125 ms, so the microphone task
+  runs in an interrupt executor (integer code only: the interrupt entry doesn't save
+  the FPU registers). The ES8311 runs at 32 kHz at the lowest, and the firmware
+  halves that to Whistle's 16 kHz with a half-band filter.
 - **The model** sits in its own 14 MB flash partition (`partitions.csv`) and is mapped
   into the address space, so the engine reads weights in place. The S3 maps it with
   the ROM's MMU routine into the data-bus window after PSRAM (`vocat/src/accel.rs`).
   The S31 has a separate flash MMU and a 256 MB window, and the firmware writes the
-  MMU entries itself (`korvo/src/mmap.rs`).
+  MMU entries itself (`korvo/src/mmap.rs`); so does the P4 (`p4/src/mmap.rs`: 1024
+  entries of 64 KB at 0x4000_0000, with an L2 cache to invalidate as well).
 - **Results don't depend on the board.** The self-test (`--selftest`) logs a checksum of the encoder
-  output (`enc_fnv`). It is the same on both boards and on a PC (`whistle transcribe`
+  output (`enc_fnv`). It is the same on every board and on a PC (`whistle transcribe`
   in cactus-whistle-rs): `db9a1371` for the default spec.
 
 ## Boot splash

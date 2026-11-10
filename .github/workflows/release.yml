@@ -1,6 +1,6 @@
 name: Release
 
-# Push a tag like v0.1.0: builds both firmwares, trims the model, attaches
+# Push a tag like v0.1.0: builds the firmwares, trims the model, attaches
 # everything to the GitHub release of that tag, and publishes the web flasher
 # (site/) with those files on GitHub Pages. Run it by hand
 # (workflow_dispatch) to rebuild the site without a release.
@@ -72,6 +72,28 @@ jobs:
           name: korvo
           path: korvo.bin
 
+  p4:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: riscv32imafc-unknown-none-elf
+          components: rust-src
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: espflash
+      - run: cargo build --release
+        working-directory: p4
+      - run: >
+          espflash save-image --chip esp32p4 --merge --skip-padding
+          --partition-table p4/partitions.csv --flash-size 16mb
+          p4/target/riscv32imafc-unknown-none-elf/release/p4-whistle p4.bin
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p4
+          path: p4.bin
+
   model:
     runs-on: ubuntu-latest
     steps:
@@ -89,7 +111,7 @@ jobs:
           path: model/whistle_d4.cact
 
   publish:
-    needs: [vocat, korvo, model]
+    needs: [vocat, korvo, p4, model]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -108,11 +130,12 @@ jobs:
           files: |
             artifacts/vocat.bin
             artifacts/korvo.bin
+            artifacts/p4.bin
             artifacts/whistle_d4.cact
       - name: Assemble the site
         run: |
           mkdir -p site/firmware site/model
-          cp artifacts/vocat.bin artifacts/korvo.bin site/firmware/
+          cp artifacts/vocat.bin artifacts/korvo.bin artifacts/p4.bin site/firmware/
           cp artifacts/whistle_d4.cact site/model/
           version=${GITHUB_REF_NAME}
           printf '{"version":"%s","date":"%s"}\n' "$version" "$(date -u +%Y-%m-%d)" > site/version.json
