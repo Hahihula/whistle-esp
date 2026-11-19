@@ -1,2 +1,6 @@
 [toolchain]
-channel = "esp"
+# Pinned to Xtensa Rust 1.97.0.0 (`espup install --toolchain-version 1.97.0.0
+# --name esp-1.97`). 1.98 and later break the build: rustc no longer exposes
+# the `esp32s3ops` target feature (esp-pie checks it), and esp-hal 1.2's
+# `__pre_init` fails to link ("l32r: literal placed after use").
+channel = "esp-1.97"

@@ -30,6 +30,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: esp-rs/xtensa-toolchain@v1.6
         with:
+          # Pinned: newer releases break the build (vocat/rust-toolchain.toml).
+          version: 1.97.0.0
+          name: esp-1.97
           default: true
           buildtargets: esp32s3
           ldproxy: false
